@@ -364,11 +364,11 @@ fast_J_PL<-function(y,g,x,pos, sc,n1, N1, n2infor,N2, theta){
    l<-kl[,2]
    
    for (i in 1:(n-1)){
-      cat(i)
+      ##cat(i)
       js <- (i+1):n
       js <- js[g[js] %in% g[i]]
       for(j in js){
-         cat(".")
+         ##cat(".")
          incrementdaij=dalpha(y[i],y[j],g[i],g[j],x[i],x[j], alpha=theta[1],beta=theta[2],sigma2=exp(theta[3]),
                               tau2_11=exp(theta[4]), tau_12=theta[5], tau2_22=exp(theta[6]))
          incrementdbij=dbeta(y[i],y[j],g[i],g[j],x[i],x[j],alpha=theta[1],beta=theta[2],sigma2=exp(theta[3]),
@@ -454,11 +454,11 @@ fast_J_WPL<-function(y,g,x,  pos,  sc, n1, N1, n2infor,N2, theta){
    l<-kl[,2]
    
    for (i in 1:(n-1)){
-      cat(i)
+      ##cat(i)
       js <- (i+1):n
       js <- js[g[js] %in% g[i]]
       for(j in js){
-         cat(".")
+         ##cat(".")
          incrementdaij=wdalpha(y[i],y[j],g[i],g[j],x[i],x[j], alpha=theta[1],beta=theta[2],sigma2=exp(theta[3]),
                                tau2_11=exp(theta[4]), tau_12=theta[5], tau2_22=exp(theta[6]), pos[i], pos[j],sc[i], sc[j], n1, N1, n2infor,N2)
          incrementdbij=wdbeta(y[i],y[j],g[i],g[j],x[i],x[j],alpha=theta[1],beta=theta[2],sigma2=exp(theta[3]),
@@ -490,6 +490,66 @@ fast_J_WPL<-function(y,g,x,  pos,  sc, n1, N1, n2infor,N2, theta){
                                                   sigma2=exp(theta[3]), tau2_11=exp(theta[4]), tau_12=theta[5], tau2_22=exp(theta[6]), pos[k], pos[l], sc[k], sc[l],n1, N1,  n2infor,N2)
          incrementdt_22kl=exp(theta[6])*wdtau2_22(y[k],y[l],g[k],g[l],x[k],x[l], alpha=theta[1],beta=theta[2],
                                                   sigma2=exp(theta[3]), tau2_11=exp(theta[4]), tau_12=theta[5], tau2_22=exp(theta[6]), pos[k], pos[l], sc[k], sc[l],n1, N1,  n2infor,N2)
+         wpskl=cbind(incrementdakl, incrementdbkl, incrementdskl, incrementdt_11kl, incrementdt_12kl, incrementdt_22kl)
+         sumwpskl<-colSums( (1/FouOrdPi( pos[ii], pos[jj], pos[k], pos[l], sc[ii], sc[jj], sc[k], sc[l], n1, N1,  n2infor,N2))*FouOrdDel(pos[ii], pos[jj], pos[k], pos[l], sc[ii], sc[jj], sc[k], sc[l],n1, N1,  n2infor,N2)* wpskl)
+         wpsijkl<-tcrossprod(wpsij,sumwpskl)
+         sum=sum+wpsijkl
+      }
+   }
+   rval<-sum/(T^2)
+   # attr(rval, "pairs")<-keep ##debug
+   rval
+}
+
+faster_J_WPL<-function(y,g,x,  pos,  sc, n1, N1, n2infor,N2, theta){
+   n<-length(y)
+   sum=0
+   
+   kl<-expand.grid(1:n,1:n)
+   kl<-kl[kl[,1]<kl[,2],]
+   kl<-kl[g[kl[,1]]==g[kl[,2,]],]
+   k<-kl[,1]
+   l<-kl[,2]
+   
+   for (i in 1:(n-1)){
+      ##cat(i)
+      js <- (i+1):n
+      js <- js[g[js] %in% g[i]]
+      for(j in js){
+          ##cat(".")
+          wij<-1/SecOrdPi(pos[i], pos[j],sc[i], sc[j], n1, N1,  n2infor,N2)
+         incrementdaij=wij*dalpha(y[i],y[j],g[i],g[j],x[i],x[j], alpha=theta[1],beta=theta[2],sigma2=exp(theta[3]),
+                               tau2_11=exp(theta[4]), tau_12=theta[5], tau2_22=exp(theta[6]))
+         incrementdbij=wij*dbeta(y[i],y[j],g[i],g[j],x[i],x[j],alpha=theta[1],beta=theta[2],sigma2=exp(theta[3]),
+                              tau2_11=exp(theta[4]), tau_12=theta[5], tau2_22=exp(theta[6]))
+         incrementdsij=exp(theta[3])*wij*dsigma2(y[i],y[j],g[i],g[j],x[i],x[j],alpha=theta[1],beta=theta[2],
+                                              sigma2=exp(theta[3]),tau2_11=exp(theta[4]), tau_12=theta[5], tau2_22=exp(theta[6]))
+         incrementdt_11ij=exp(theta[4])*wij*dtau2_11(y[i],y[j],g[i],g[j],x[i],x[j], alpha=theta[1],beta=theta[2],sigma2=exp(theta[3]),
+                                                  tau2_11=exp(theta[4]), tau_12=theta[5], tau2_22=exp(theta[6]))
+         incrementdt_12ij=wij*dtau_12(y[i],y[j],g[i],g[j],x[i],x[j], alpha=theta[1],beta=theta[2],sigma2=exp(theta[3]),
+                                                  tau2_11=exp(theta[4]), tau_12=theta[5], tau2_22=exp(theta[6]))
+         incrementdt_22ij=exp(theta[6])*wij*dtau2_22(y[i],y[j],g[i],g[j],x[i],x[j], alpha=theta[1],beta=theta[2],sigma2=exp(theta[3]),
+                                                  tau2_11=exp(theta[4]), tau_12=theta[5], tau2_22=exp(theta[6]))
+         
+         
+         wpsij=c(incrementdaij, incrementdbij, incrementdsij, incrementdt_11ij, incrementdt_12ij, incrementdt_22ij)
+         
+         ## k,l vectorised: probably can't afford memory to do that for ijkl 
+         ii <-rep(i, length(k))
+          jj<-rep(j,length(k))
+          wkl<-1/SecOrdPi( pos[k], pos[l], sc[k], sc[l], n1, N1, n2infor,N2)
+         incrementdakl=wkl*dalpha(y[k],y[l],g[k],g[l],x[k],x[l], alpha=theta[1],beta=theta[2],
+                               sigma2=exp(theta[3]), tau2_11=exp(theta[4]), tau_12=theta[5], tau2_22=exp(theta[6]))
+         incrementdbkl=wkl*dbeta(y[k],y[l],g[k],g[l],x[k],x[l],alpha=theta[1],beta=theta[2],
+                              sigma2=exp(theta[3]), tau2_11=exp(theta[4]), tau_12=theta[5], tau2_22=exp(theta[6]))
+         incrementdskl=exp(theta[3])*wkl*dsigma2(y[k],y[l],g[k],g[l],x[k],x[l],alpha=theta[1],beta=theta[2],
+                                              sigma2=exp(theta[3]), tau2_11=exp(theta[4]), tau_12=theta[5], tau2_22=exp(theta[6]))
+         incrementdt_11kl=exp(theta[4])*wkl*dtau2_11(y[k],y[l],g[k],g[l],x[k],x[l], alpha=theta[1],beta=theta[2],
+                                            sigma2=exp(theta[3]), tau2_11=exp(theta[4]), tau_12=theta[5], tau2_22=exp(theta[6]))
+         incrementdt_12kl=wkl*dtau_12(y[k],y[l],g[k],g[l],x[k],x[l], alpha=theta[1],beta=theta[2],
+                                                  sigma2=exp(theta[3]), tau2_11=exp(theta[4]), tau_12=theta[5], tau2_22=exp(theta[6]))
+         incrementdt_22kl=exp(theta[6])*wkl*dtau2_22(y[k],y[l],g[k],g[l],x[k],x[l], alpha=theta[1],beta=theta[2],
+                                                  sigma2=exp(theta[3]), tau2_11=exp(theta[4]), tau_12=theta[5], tau2_22=exp(theta[6]))
          wpskl=cbind(incrementdakl, incrementdbkl, incrementdskl, incrementdt_11kl, incrementdt_12kl, incrementdt_22kl)
          sumwpskl<-colSums( (1/FouOrdPi( pos[ii], pos[jj], pos[k], pos[l], sc[ii], sc[jj], sc[k], sc[l], n1, N1,  n2infor,N2))*FouOrdDel(pos[ii], pos[jj], pos[k], pos[l], sc[ii], sc[jj], sc[k], sc[l],n1, N1,  n2infor,N2)* wpskl)
          wpsijkl<-tcrossprod(wpsij,sumwpskl)
